@@ -13,7 +13,7 @@ class User(db.Model):
 class TranslationRecord(db.Model):
     __tablename__ = 'translation_records'
     id = db.Column(db.Integer, primary_key=True)
-    image_path = db.Column(db.String(200), nullable=False)
+    cos_file_id = db.Column(db.String(200), nullable=False)  # 存储COS中的文件ID
     chinese_translation = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

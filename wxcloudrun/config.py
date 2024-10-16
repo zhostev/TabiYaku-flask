@@ -18,3 +18,9 @@ class Config:
 
     # 上传文件夹
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/app/uploads/')
+
+    # 腾讯云COS配置
+    COS_BUCKET = os.environ.get('COS_BUCKET')
+    COS_REGION = os.environ.get('COS_REGION')
+    COS_SECRET_ID = os.environ.get('COS_SECRET_ID')  # 新增: 腾讯云COS的Secret ID
+    COS_SECRET_KEY = os.environ.get('COS_SECRET_KEY')  # 新增: 腾讯云COS的Secret Key

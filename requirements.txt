@@ -7,4 +7,5 @@ openai==0.27.0
 python-dotenv==1.0.0
 requests==2.31.0
 werkzeug==2.3.0
-pymysql==1.0.2
+pymysql==1.0.
+cos-python-sdk-v5==1.8.8

@@ -14,16 +14,11 @@ services:
       - hostPort=27081
       - wxcloud=wxcloudrun-flask
       - role=container
-    environment:
-      - MYSQL_USERNAME=root
-      - MYSQL_PASSWORD=Moshou99
-      - MYSQL_ADDRESS=10.4.102.132:3306
-      - SECRET_KEY=your_secret_key
-      - OPENAI_API_KEY=your_openai_api_key
-      - OPENAI_MODEL=gpt-4
-      - UPLOAD_FOLDER=/app/uploads/
+    env_file:
+      - .env
     networks:
       - wxcb0
+
 networks:
   wxcb0:
     external:

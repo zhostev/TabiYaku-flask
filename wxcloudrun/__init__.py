@@ -13,15 +13,18 @@ app = Flask(__name__)
 # 加载配置
 app.config.from_object('wxcloudrun.config.Config')
 
-# 初始化扩展
+# 初始化数据库
 db = SQLAlchemy(app)
+
+# 初始化 JWT
 jwt = JWTManager(app)
+
+# 初始化 Flask-RESTful
 api = Api(app)
 
-# 导入 API 资源
+# 导入并注册 API 资源
 from .views import ImageUpload, TranslationRecordResource, UserRegister, UserLogin
 
-# 添加资源路由
 api.add_resource(UserRegister, '/register')
 api.add_resource(UserLogin, '/login')
 api.add_resource(ImageUpload, '/upload_image')

@@ -9,6 +9,15 @@ import openai
 import base64
 from werkzeug.security import generate_password_hash, check_password_hash
 from .config import Config
+from qcloud_cos import CosConfig
+from qcloud_cos import CosS3Client
+from urllib.parse import urlparse
+
+# 初始化COS客户端
+def get_cos_client():
+    config = CosConfig(Region=Config.COS_REGION, SecretId=Config.COS_SECRET_ID, SecretKey=Config.COS_SECRET_KEY)
+    client = CosS3Client(config)
+    return client
 
 # 允许的文件扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -60,28 +69,36 @@ class ImageUpload(Resource):
             return {'message': 'No selected file'}, 400
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            save_path = os.path.join(Config.UPLOAD_FOLDER, filename)
-            os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
-            file.save(save_path)
-            
-            # 读取图片文件并编码为 base64
+            cos_client = get_cos_client()
+            cos_path = f"test/{filename}"  # 可以根据需求更改目录结构
+
+            # 上传文件到COS
             try:
-                with open(save_path, "rb") as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                with open("/tmp/" + filename, "wb") as f:
+                    file.save(f)
+                response = cos_client.upload_file(
+                    Bucket=Config.COS_BUCKET,
+                    LocalFilePath=f"/tmp/{filename}",
+                    Key=cos_path,
+                    PartSize=1,
+                    MAXThread=10,
+                    EnableMD5=True
+                )
+                # 删除临时文件
+                os.remove("/tmp/" + filename)
+                file_id = response['ETag']  # 使用ETag作为文件ID
             except Exception as e:
-                return {'message': 'Failed to read image file', 'error': str(e)}, 500
-                
-            # 创建 GPT-4 的 messages payload
+                return {'message': 'Failed to upload to COS', 'error': str(e)}, 500
+
+            # 创建 OpenAI 的 messages payload
             messages = [
                 {"role": "system", "content": "你是一个将日语菜单图片内容翻译成中文的助手。"},
                 {"role": "user", "content": [
                     {"type": "text", "text": "请将以下日语菜单图片内容翻译成中文："},
-                    {"type": "image_url", "image_url": {
-                        "url": f"data:image/{filename.rsplit('.', 1)[1].lower()};base64,{base64_image}"
-                    }}
+                    {"type": "image_url", "image_url": f"cloud://{Config.COS_BUCKET}/{cos_path}"}
                 ]}
             ]
-            
+
             # 使用 GPT-4 API 进行翻译
             try:
                 openai.api_key = Config.OPENAI_API_KEY
@@ -93,17 +110,17 @@ class ImageUpload(Resource):
                 chinese_translation = response.choices[0].message.content.strip()
             except Exception as e:
                 return {'message': 'Translation failed', 'error': str(e)}, 500
-            
+
             # 保存翻译记录
             user_id = get_jwt_identity()
             record = TranslationRecord(
-                image_path=save_path,
+                cos_file_id=cos_path,
                 chinese_translation=chinese_translation,
                 user_id=user_id
             )
             db.session.add(record)
             db.session.commit()
-            
+
             return {
                 'record_id': record.id,
                 'chinese_translation': chinese_translation
@@ -120,7 +137,7 @@ class TranslationRecordResource(Resource):
             return {'message': 'Record not found'}, 404
         return {
             'id': record.id,
-            'image_path': record.image_path,
+            'cos_file_id': record.cos_file_id,
             'chinese_translation': record.chinese_translation,
             'created_at': record.created_at.isoformat()
         }, 200
