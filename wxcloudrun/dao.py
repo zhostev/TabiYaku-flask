@@ -1,6 +1,7 @@
 from . import db
 from .model import TranslationRecord
 from sqlalchemy.exc import SQLAlchemyError
+from wxcloudrun.model import Counters
 
 def insert_translation_record(image_path, chinese_translation, user_id):
     try:
@@ -17,3 +18,4 @@ def insert_translation_record(image_path, chinese_translation, user_id):
         # 记录详细错误信息
         current_app.logger.error(f"Database Insert Error: {e}")
         raise
+

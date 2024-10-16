@@ -21,14 +21,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import openai
 from qcloud_cos import CosConfig, CosS3Client
 
-# Import custom modules
-from wxcloudrun.dao import (
-    delete_counterbyid,
-    query_counterbyid,
-    insert_counter,
-    update_counterbyid
-)
-from wxcloudrun.model import Counters, User, TranslationRecord
+
+from wxcloudrun.model import User, TranslationRecord
 from wxcloudrun.response import (
     make_succ_empty_response,
     make_succ_response,
@@ -36,66 +30,62 @@ from wxcloudrun.response import (
 )
 from wxcloudrun.config import Config
 
-# Configure logging
+# 配置日志
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger()
 
-# Initialize Flask app
+# 初始化 Flask 应用
 app = Flask(__name__, template_folder='templates')
 
-# Enable CORS (adjust origins as needed)
+# 启用 CORS（根据需要调整来源）
 CORS(app)
 
-# Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI  # e.g., 'sqlite:///your_database.db'
+# 配置
+app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI  # 例如 'sqlite:///your_database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY  # Replace with a secure key
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB upload limit
+app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY  # 替换为安全密钥
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB 上传限制
 
-# Initialize extensions
+# 初始化扩展
 db = SQLAlchemy(app)
 api = Api(app)
 jwt = JWTManager(app)
 
-# Allowed file extensions for image upload
+# 允许的文件扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
 
 def allowed_file(filename):
     """
-    Check if the uploaded file has an allowed extension.
+    检查上传的文件是否具有允许的扩展名。
     """
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
-# Initialize COS client
+# 初始化 COS 客户端
 def get_cos_client():
     """
-    Initialize and return a COS client using the configurations.
+    使用配置初始化并返回 COS 客户端。
     """
     config = CosConfig(
         Region=Config.COS_REGION,
         SecretId=Config.COS_SECRET_ID,
         SecretKey=Config.COS_SECRET_KEY,
-        Token=Config.COS_TOKEN,       # Assuming you might use temporary keys
-        Scheme=Config.COS_SCHEME      # 'https' or 'http'
+        Token=Config.COS_TOKEN,       # 如果使用临时密钥
+        Scheme=Config.COS_SCHEME      # 'https' 或 'http'
     )
     client = CosS3Client(config)
     return client
 
-
-# Flask-RESTful Request Parsers
+# Flask-RESTful 请求解析器
 register_parser = reqparse.RequestParser()
-register_parser.add_argument('username', type=str, required=True, help='Username is required')
-register_parser.add_argument('password', type=str, required=True, help='Password is required')
+register_parser.add_argument('username', type=str, required=True, help='用户名是必需的')
+register_parser.add_argument('password', type=str, required=True, help='密码是必需的')
 
 login_parser = reqparse.RequestParser()
-login_parser.add_argument('username', type=str, required=True, help='Username is required')
-login_parser.add_argument('password', type=str, required=True, help='Password is required')
+login_parser.add_argument('username', type=str, required=True, help='用户名是必需的')
+login_parser.add_argument('password', type=str, required=True, help='密码是必需的')
 
-
-# User Registration Resource
+# 用户注册资源
 class UserRegister(Resource):
     def post(self):
         data = register_parser.parse_args()
@@ -103,17 +93,16 @@ class UserRegister(Resource):
         password = data['password']
 
         if User.query.filter_by(username=username).first():
-            return make_err_response('User already exists'), 400
+            return make_err_response('用户已存在'), 400
 
         hashed_password = generate_password_hash(password)
         user = User(username=username, password=hashed_password)
         db.session.add(user)
         db.session.commit()
 
-        return make_succ_response('User created successfully'), 201
+        return make_succ_response('用户创建成功'), 201
 
-
-# User Login Resource
+# 用户登录资源
 class UserLogin(Resource):
     def post(self):
         data = login_parser.parse_args()
@@ -122,78 +111,77 @@ class UserLogin(Resource):
 
         user = User.query.filter_by(username=username).first()
         if not user or not check_password_hash(user.password, password):
-            return make_err_response('Invalid credentials'), 401
+            return make_err_response('无效的凭证'), 401
 
         access_token = create_access_token(identity=user.id)
         return make_succ_response({'access_token': access_token}), 200
 
-
-# Image Upload and Translation Resource
+# 图片上传和翻译资源
 class ImageUpload(Resource):
     @jwt_required()
     def post(self):
         if 'image' not in request.files:
-            return make_err_response('No image file provided'), 400
+            return make_err_response('未提供图片文件'), 400
 
         file = request.files['image']
         if file.filename == '':
-            return make_err_response('No selected file'), 400
+            return make_err_response('未选择文件'), 400
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             cos_client = get_cos_client()
-            cos_path = f"uploads/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"  # Unique path
+            cos_path = f"uploads/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"  # 唯一路径
 
-            # Use a temporary file to store the uploaded image
+            # 使用临时文件保存上传的图片
             try:
                 with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                     file.save(temp_file)
                     temp_file_path = temp_file.name
 
-                # Upload file to COS using the recommended upload_file method
+                # 使用推荐的 upload_file 方法上传到 COS
                 response = cos_client.upload_file(
                     Bucket=Config.COS_BUCKET,
                     LocalFilePath=temp_file_path,
                     Key=cos_path,
-                    PartSize=5,           # PartSize in MB, adjust as needed (1-5MB recommended)
-                    MAXThread=10,         # Number of threads for multipart upload
-                    EnableMD5=True        # Enable MD5 checksum for verification
+                    PartSize=5,           # PartSize 以 MB 为单位，根据需要调整（建议 1-5MB）
+                    MAXThread=10,         # 分段上传的线程数
+                    EnableMD5=True        # 启用 MD5 校验
                 )
-                logger.info(f"File uploaded to COS: {cos_path}")
-                # Delete the temporary file after upload
+                logger.info(f"文件已上传到 COS: {cos_path}")
+                # 上传后删除临时文件
                 os.remove(temp_file_path)
 
                 file_url = f"https://{Config.COS_BUCKET}.cos.{Config.COS_REGION}.myqcloud.com/{cos_path}"
-                file_id = response.get('ETag', '')  # Use ETag as file ID if needed
+                file_id = response.get('ETag', '')  # 如果需要，可以使用 ETag 作为文件 ID
             except Exception as e:
-                logger.error(f"Failed to upload to COS: {str(e)}")
-                return make_err_response('Failed to upload to COS', error=str(e)), 500
+                logger.error(f"上传到 COS 失败: {str(e)}")
+                return make_err_response('上传到 COS 失败', error=str(e)), 500
 
-            # Create OpenAI messages payload
+            # 创建 OpenAI 消息负载
             messages = [
                 {"role": "system", "content": "你是一个将日语菜单图片内容翻译成中文的助手。"},
                 {"role": "user", "content": [
                     {"type": "text", "text": "请将以下日语菜单图片内容翻译成中文："},
-                    {"type": "image_url", "image_url": file_url}  # Use the HTTPS URL for OpenAI
+                    {"type": "image_url", "image_url": file_url}  # 使用 OpenAI 的 HTTPS URL
                 ]}
             ]
 
-            # Use GPT-4 API for translation
+            # 使用 GPT-4 API 进行翻译
             try:
                 openai.api_key = Config.OPENAI_API_KEY
-                openai_model = Config.OPENAI_MODEL  # Ensure this is set, e.g., "gpt-4"
+                openai_model = Config.OPENAI_MODEL  # 确保已设置，例如 "gpt-4"
                 chat_response = openai.ChatCompletion.create(
                     model=openai_model,
                     messages=messages,
                     temperature=0.0,
                 )
                 chinese_translation = chat_response.choices[0].message.content.strip()
-                logger.info("Translation successful")
+                logger.info("翻译成功")
             except Exception as e:
-                logger.error(f"Translation failed: {str(e)}")
-                return make_err_response('Translation failed', error=str(e)), 500
+                logger.error(f"翻译失败: {str(e)}")
+                return make_err_response('翻译失败', error=str(e)), 500
 
-            # Save translation record to the database
+            # 将翻译记录保存到数据库
             try:
                 user_id = get_jwt_identity()
                 record = TranslationRecord(
@@ -203,20 +191,19 @@ class ImageUpload(Resource):
                 )
                 db.session.add(record)
                 db.session.commit()
-                logger.info(f"Translation record saved: {record.id}")
+                logger.info(f"翻译记录已保存: {record.id}")
             except Exception as e:
-                logger.error(f"Failed to save translation record: {str(e)}")
-                return make_err_response('Failed to save translation record', error=str(e)), 500
+                logger.error(f"保存翻译记录失败: {str(e)}")
+                return make_err_response('保存翻译记录失败', error=str(e)), 500
 
             return make_succ_response({
                 'record_id': record.id,
                 'chinese_translation': chinese_translation
             }), 201
         else:
-            return make_err_response('Unsupported file type'), 400
+            return make_err_response('不支持的文件类型'), 400
 
-
-# Translation Record Retrieval Resource
+# 翻译记录检索资源
 class TranslationRecordResource(Resource):
     @jwt_required()
     def get(self, record_id):
@@ -224,7 +211,7 @@ class TranslationRecordResource(Resource):
         record = TranslationRecord.query.filter_by(id=record_id, user_id=user_id).first()
 
         if not record:
-            return make_err_response('Record not found'), 404
+            return make_err_response('记录未找到'), 404
 
         return make_succ_response({
             'id': record.id,
@@ -233,8 +220,7 @@ class TranslationRecordResource(Resource):
             'created_at': record.created_at.isoformat()
         }), 200
 
-
-# Translation Records List Resource
+# 翻译记录列表资源
 class TranslationRecordsListResource(Resource):
     @jwt_required()
     def get(self):
@@ -249,90 +235,27 @@ class TranslationRecordsListResource(Resource):
 
         return make_succ_response({'records': records_data}), 200
 
-
-# User Logout Resource (optional, since JWTs are stateless)
+# 用户登出资源（可选，因为 JWT 是无状态的）
 class UserLogout(Resource):
     @jwt_required()
     def post(self):
-        # To implement token revocation, you need to set up a token blacklist
-        # This is optional and requires additional setup
-        return make_succ_response('Logout successful'), 200
+        # 要实现令牌撤销，您需要设置一个令牌黑名单
+        # 这是可选的，需要额外的设置
+        return make_succ_response('登出成功'), 200
 
-
-# Register API Resources with Endpoints
+# 注册 API 资源和端点
 api.add_resource(UserRegister, '/api/register')
 api.add_resource(UserLogin, '/api/login')
 api.add_resource(ImageUpload, '/api/upload')
 api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
 api.add_resource(TranslationRecordsListResource, '/api/records')
-api.add_resource(UserLogout, '/api/logout')  # Optional
+api.add_resource(UserLogout, '/api/logout')  # 可选
 
 
-# Existing Routes
 
-@app.route('/')
-def index():
-    """
-    Serve the index HTML page.
-    """
-    return render_template('index.html')
-
-
-@app.route('/api/count', methods=['POST'])
-def count():
-    """
-    Handle count increment or reset actions.
-    """
-    # 获取请求体参数
-    params = request.get_json()
-
-    # 检查action参数
-    if not params or 'action' not in params:
-        return make_err_response('缺少action参数'), 400
-
-    # 按照不同的action的值，进行不同的操作
-    action = params['action']
-
-    # 执行自增操作
-    if action == 'inc':
-        counter = query_counterbyid(1)
-        if counter is None:
-            counter = Counters(
-                id=1,
-                count=1,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-            insert_counter(counter)
-        else:
-            counter.count += 1
-            counter.updated_at = datetime.now()
-            update_counterbyid(counter)
-        return make_succ_response({'data': counter.count}), 200
-
-    # 执行清0操作
-    elif action == 'clear':
-        delete_counterbyid(1)
-        return make_succ_empty_response(), 200
-
-    # action参数错误
-    else:
-        return make_err_response('action参数错误'), 400
-
-
-@app.route('/api/count', methods=['GET'])
-def get_count():
-    """
-    Retrieve the current count value.
-    """
-    counter = Counters.query.filter(Counters.id == 1).first()
-    current_count = 0 if counter is None else counter.count
-    return make_succ_response({'data': current_count}), 200
-
-
-# Run the Flask app
+# 运行 Flask 应用
 if __name__ == '__main__':
-    # Create database tables if they don't exist
+    # 如果数据库表不存在，则创建
     with app.app_context():
         db.create_all()
     app.run(host='0.0.0.0', port=5000, debug=True)

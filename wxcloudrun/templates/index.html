@@ -374,32 +374,8 @@
     // JWT Token
     let accessToken = localStorage.getItem('access_token') || '';
 
-    // Function to Initialize Counter
-    function initCount() {
-      $.ajax("/api/count", {
-        method: "get",
-      }).done(function (res) {
-        if (res && res.data !== undefined) {
-          $(".count-number").html(res.data);
-        }
-      });
-    }
 
-    // Function to Set Counter
-    function setCount(action) {
-      $.ajax("/api/count", {
-        method: "POST",
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        data: JSON.stringify({
-          action: action,
-        }),
-      }).done(function (res) {
-        if (res && res.data !== undefined) {
-          $(".count-number").html(res.data);
-        }
-      });
-    }
+
 
     // Toggle between Register and Login Forms
     function showRegister() {
