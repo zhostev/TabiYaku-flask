@@ -2,11 +2,8 @@
 import sys
 from wxcloudrun import app
 
-# 启动 Flask Web 服务
+# 启动 Flask Web 服务，接受命令行参数指定主机和端口
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print("Usage: python3 run.py <host> <port>")
-        sys.exit(1)
-    host = sys.argv[1]
-    port = int(sys.argv[2])
+    host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
+    port = int(sys.argv[2]) if len(sys.argv) > 2 else 5000
     app.run(host=host, port=port)

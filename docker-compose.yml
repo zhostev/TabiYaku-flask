@@ -7,7 +7,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - '27081:80'  # 将本地的 27081 端口映射到容器的 80 端口
+      - '27081:80'  # 将本地的27081端口映射到容器的80端口
     container_name: wxcloud_wxcloudrun-flask
     labels:
       - wxPort=27082
@@ -15,13 +15,13 @@ services:
       - wxcloud=wxcloudrun-flask
       - role=container
     environment:
-      - MYSQL_USERNAME=${MYSQL_USERNAME}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ADDRESS=${MYSQL_ADDRESS}
-      - SECRET_KEY=${SECRET_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL}
-      - UPLOAD_FOLDER=${UPLOAD_FOLDER}
+      - MYSQL_USERNAME=root
+      - MYSQL_PASSWORD=Moshou99
+      - MYSQL_ADDRESS=10.4.102.132:3306
+      - SECRET_KEY=your_secret_key
+      - OPENAI_API_KEY=your_openai_api_key
+      - OPENAI_MODEL=gpt-4
+      - UPLOAD_FOLDER=/app/uploads/
     networks:
       - wxcb0
 networks:
