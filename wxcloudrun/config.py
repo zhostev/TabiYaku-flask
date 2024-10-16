@@ -2,16 +2,16 @@ import os
 
 class Config(object):
     # 基础配置
-    DEBUG = os.environ.get('FLASK_DEBUG', 'False') == 'True'
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your_secret_key')
 
     # 数据库配置
     MYSQL_USERNAME = os.environ.get('MYSQL_USERNAME', 'root')
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'password')
     MYSQL_ADDRESS = os.environ.get('MYSQL_ADDRESS', 'localhost:3306')
-    MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'flask_demo')
+    DATABASE_NAME = os.environ.get('DATABASE_NAME', 'flask_demo')  # 确保数据库名称正确
 
-    SQLALCHEMY_DATABASE_URI = f"mysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/{MYSQL_DATABASE}?charset=utf8mb4"
+    SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/{DATABASE_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # OpenAI 配置

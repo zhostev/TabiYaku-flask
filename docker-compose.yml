@@ -3,12 +3,17 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.development
     volumes:
       - .:/app
     ports:
       - '27081:80'  # 将本地的 27081 端口映射到容器的 80 端口
     container_name: wxcloud_wxcloudrun-flask
+    labels:
+      - wxPort=27082
+      - hostPort=27081
+      - wxcloud=wxcloudrun-flask
+      - role=container
     environment:
       - MYSQL_USERNAME=${MYSQL_USERNAME}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
@@ -16,14 +21,10 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
-      - UPLOAD_FOLDER=/app/uploads/
-      - COS_BUCKET=${COS_BUCKET}
-      - COS_REGION=${COS_REGION}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER}
     networks:
       - wxcb0
-    depends_on:
-      - db  # 如果 MySQL 服务在同一个 docker-compose 文件中，可以配置 depends_on
-
 networks:
   wxcb0:
-    external: true
+    external:
+      name: wxcb0

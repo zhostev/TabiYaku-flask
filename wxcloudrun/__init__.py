@@ -1,13 +1,13 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager
 import pymysql
 import os
-import logging
 
 # 因 MySQLdb 不支持 Python3，使用 pymysql 替代
 pymysql.install_as_MySQLdb()
 
-# 初始化 web 应用
+# 初始化 Flask 应用
 app = Flask(__name__)
 
 # 加载配置
@@ -16,21 +16,12 @@ app.config.from_object('wxcloudrun.config.Config')
 # 初始化数据库
 db = SQLAlchemy(app)
 
-# 配置日志
-if not app.debug:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
-    handler.setFormatter(formatter)
-    app.logger.addHandler(handler)
+# 初始化 JWT
+jwt = JWTManager(app)
 
-# 加载视图
+# 导入视图（确保在 db 初始化后导入以避免循环引用）
 from wxcloudrun import views
 
-# 确保每次请求完成后正确关闭数据库会话
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    if exception:
-        db.session.rollback()
-    db.session.remove()
+# 创建数据库表（在应用上下文中）
+with app.app_context():
+    db.create_all()
