@@ -7,8 +7,8 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)  # 哈希后的密码
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    translations = db.relationship('TranslationRecord', backref='user', lazy=True)
+
+    translations = db.relationship('translation_records', backref='user', lazy=True)
 
 class TranslationRecord(db.Model):
     __tablename__ = 'translation_records'

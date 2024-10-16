@@ -17,8 +17,13 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
       - UPLOAD_FOLDER=/app/uploads/
+      - COS_BUCKET=${COS_BUCKET}
+      - COS_REGION=${COS_REGION}
     networks:
       - wxcb0
+    depends_on:
+      - db  # 如果 MySQL 服务在同一个 docker-compose 文件中，可以配置 depends_on
+
 networks:
   wxcb0:
     external: true
