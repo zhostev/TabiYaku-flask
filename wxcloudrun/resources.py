@@ -1,4 +1,3 @@
-# -*- coding=utf-8
 from flask_restful import Resource, reqparse
 from flask import request
 from werkzeug.utils import secure_filename
@@ -29,7 +28,7 @@ def get_cos_client():
         Region=Config.COS_REGION,
         SecretId=Config.COS_SECRET_ID,
         SecretKey=Config.COS_SECRET_KEY,
-        Token=Config.COS_TOKEN,       # Assuming you might use temporary keys
+        Token=Config.COS_TOKEN,       # Optional, if using temporary credentials
         Scheme=Config.COS_SCHEME      # 'https' or 'http'
     )
     client = CosS3Client(config)
@@ -102,9 +101,9 @@ class ImageUpload(Resource):
                     Bucket=Config.COS_BUCKET,
                     LocalFilePath=temp_file_path,
                     Key=cos_path,
-                    PartSize=5,           # PartSize in MB, adjust as needed (1-5MB recommended)
-                    MAXThread=10,         # Number of threads for multipart upload
-                    EnableMD5=True        # Enable MD5 checksum for verification
+                    PartSize=5,           # Part size in MB (1-5MB recommended)
+                    MAXThread=10,         # Number of threads
+                    EnableMD5=True        # Enable MD5 checksum
                 )
                 logger.info(f"File uploaded to COS: {cos_path}")
                 # Delete the temporary file after upload
