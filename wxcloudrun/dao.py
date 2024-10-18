@@ -1,7 +1,7 @@
 from . import db
 from .model import TranslationRecord
 from sqlalchemy.exc import SQLAlchemyError
-from wxcloudrun.model import Counters
+
 
 def insert_translation_record(image_path, chinese_translation, user_id):
     try:
