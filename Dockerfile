@@ -37,4 +37,5 @@ ENV PATH=/root/.local/bin:$PATH
 EXPOSE 80
 
 # 执行启动命令
-CMD ["python3", "run.py", "0.0.0.0", "80"]
+# CMD ["python3", "run.py", "0.0.0.0", "80"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "run:app"]

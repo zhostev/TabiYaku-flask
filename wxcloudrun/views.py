@@ -1,55 +1,34 @@
-# views.py
+# wxcloudrun/views.py
 
-# -*- coding=utf-8 -*-
+from flask import Blueprint, render_template, request
+from flask_restful import Resource, reqparse
+from flask_jwt_extended import (
+    jwt_required, get_jwt_identity
+)
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+
 import os
 import sys
 import logging
 import tempfile
 from datetime import datetime
 
-from flask import Flask, render_template, request
-from flask_restful import Api, Resource, reqparse
-from flask_jwt_extended import (
-    JWTManager, create_access_token,
-    jwt_required, get_jwt_identity
-)
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
-
 import openai
 from qcloud_cos import CosConfig, CosS3Client
 
-
-from wxcloudrun.model import User, TranslationRecord
-from wxcloudrun.response import (
+from . import db, api
+from .model import User, TranslationRecord
+from .response import (
     make_succ_empty_response,
     make_succ_response,
     make_err_response
 )
-from wxcloudrun.config import Config
+from .config import Config
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger()
-
-# 初始化 Flask 应用
-app = Flask(__name__, template_folder='templates')
-
-# 启用 CORS（根据需要调整来源）
-CORS(app)
-
-# 配置
-app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI  # 例如 'sqlite:///your_database.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY  # 替换为安全密钥
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB 上传限制
-
-# 初始化扩展
-db = SQLAlchemy(app)
-api = Api(app)
-jwt = JWTManager(app)
 
 # 允许的文件扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -76,14 +55,23 @@ def get_cos_client():
     client = CosS3Client(config)
     return client
 
-# Flask-RESTful 请求解析器
-register_parser = reqparse.RequestParser()
-register_parser.add_argument('username', type=str, required=True, help='用户名是必需的')
-register_parser.add_argument('password', type=str, required=True, help='密码是必需的')
+# 创建 Blueprint
+main_bp = Blueprint('main', __name__, template_folder='templates')
 
-login_parser = reqparse.RequestParser()
-login_parser.add_argument('username', type=str, required=True, help='用户名是必需的')
-login_parser.add_argument('password', type=str, required=True, help='密码是必需的')
+# 定义视图路由
+@main_bp.route('/')
+def index():
+    return render_template('index.html')
+
+@main_bp.route('/routes')
+def list_routes():
+    import urllib
+    output = []
+    for rule in current_app.url_map.iter_rules():
+        methods = ','.join(rule.methods)
+        line = urllib.parse.unquote(f"{rule.endpoint:30s} {methods:20s} {rule}")
+        output.append(line)
+    return '<br>'.join(output)
 
 # 用户注册资源
 class UserRegister(Resource):
@@ -246,21 +234,7 @@ class UserLogout(Resource):
 # 注册 API 资源和端点
 api.add_resource(UserRegister, '/api/register')
 api.add_resource(UserLogin, '/api/login')
-api.add_resource(ImageUpload, '/api/upload')
+api.add_resource(ImageUpload, '/api/upload_image')
 api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
 api.add_resource(TranslationRecordsListResource, '/api/records')
 api.add_resource(UserLogout, '/api/logout')  # 可选
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
-
-
-# 运行 Flask 应用
-if __name__ == '__main__':
-    # 如果数据库表不存在，则创建
-    with app.app_context():
-        db.create_all()
-    app.run(host='0.0.0.0', port=5000, debug=True)

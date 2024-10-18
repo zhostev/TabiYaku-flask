@@ -1,3 +1,5 @@
+# wxcloudrun/__init__.py
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api
@@ -22,13 +24,26 @@ jwt = JWTManager(app)
 # 初始化 Flask-RESTful
 api = Api(app)
 
-# 导入并注册 API 资源
-from .views import ImageUpload, TranslationRecordResource, UserRegister, UserLogin
+# 导入并注册视图 Blueprint
+from .views import main_bp
+app.register_blueprint(main_bp)
 
-api.add_resource(UserRegister, '/register')
-api.add_resource(UserLogin, '/login')
-api.add_resource(ImageUpload, '/upload_image')
-api.add_resource(TranslationRecordResource, '/records/<int:record_id>')
+# 导入并注册 API 资源
+from .views import (
+    ImageUpload,
+    TranslationRecordResource,
+    UserRegister,
+    UserLogin,
+    UserLogout,
+    TranslationRecordsListResource
+)
+
+api.add_resource(UserRegister, '/api/register')
+api.add_resource(UserLogin, '/api/login')
+api.add_resource(ImageUpload, '/api/upload_image')
+api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
+api.add_resource(TranslationRecordsListResource, '/api/records')
+api.add_resource(UserLogout, '/api/logout')  # 可选
 
 # 创建数据库表
 with app.app_context():
