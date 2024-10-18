@@ -1,5 +1,3 @@
-# wxcloudrun/__init__.py
-
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api
@@ -28,7 +26,7 @@ api = Api(app)
 from .views import main_bp
 app.register_blueprint(main_bp)
 
-# 导入并注册 API 资源
+# 导入 API 资源类
 from .views import (
     ImageUpload,
     TranslationRecordResource,
@@ -38,12 +36,13 @@ from .views import (
     TranslationRecordsListResource
 )
 
-api.add_resource(UserRegister, '/api/register')
-api.add_resource(UserLogin, '/api/login')
-api.add_resource(ImageUpload, '/api/upload_image')
-api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
-api.add_resource(TranslationRecordsListResource, '/api/records')
-api.add_resource(UserLogout, '/api/logout')  # 可选
+# 仅在这里添加 API 资源
+api.add_resource(UserRegister, '/api/register', endpoint="user_register")
+api.add_resource(UserLogin, '/api/login', endpoint="user_login")
+api.add_resource(ImageUpload, '/api/upload_image', endpoint="image_upload")
+api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>', endpoint="translation_record")
+api.add_resource(TranslationRecordsListResource, '/api/records', endpoint="translation_records_list")
+api.add_resource(UserLogout, '/api/logout', endpoint="user_logout")  # 可选
 
 # 创建数据库表
 with app.app_context():

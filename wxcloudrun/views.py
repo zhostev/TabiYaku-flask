@@ -231,10 +231,3 @@ class UserLogout(Resource):
         # 这是可选的，需要额外的设置
         return make_succ_response('登出成功'), 200
 
-# 注册 API 资源和端点
-api.add_resource(UserRegister, '/api/register')
-api.add_resource(UserLogin, '/api/login')
-api.add_resource(ImageUpload, '/api/upload_image')
-api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
-api.add_resource(TranslationRecordsListResource, '/api/records')
-api.add_resource(UserLogout, '/api/logout')  # 可选
