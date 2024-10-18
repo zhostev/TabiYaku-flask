@@ -12,6 +12,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/flask_demo"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # JWT 配置
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your_jwt_secret_key')  # 添加这行以解决错误
+
     # OpenAI 配置
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'your_openai_api_key')
     OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4')
@@ -22,7 +25,7 @@ class Config:
     # 腾讯云COS配置
     COS_BUCKET = os.environ.get('COS_BUCKET')
     COS_REGION = os.environ.get('COS_REGION')
-    COS_SECRET_ID = os.environ.get('COS_SECRET_ID')       # 腾讯云COS的Secret ID
-    COS_SECRET_KEY = os.environ.get('COS_SECRET_KEY')     # 腾讯云COS的Secret Key
-    COS_TOKEN = os.environ.get('COS_TOKEN')               # 如果使用临时密钥，需提供Token；否则为None
-    COS_SCHEME = os.environ.get('COS_SCHEME', 'https')     # 访问协议，默认为https
+    COS_SECRET_ID = os.environ.get('COS_SECRET_ID')      # 腾讯云COS的Secret ID
+    COS_SECRET_KEY = os.environ.get('COS_SECRET_KEY')    # 腾讯云COS的Secret Key
+    COS_TOKEN = os.environ.get('COS_TOKEN')              # 如果使用临时密钥，需提供Token；否则为None
+    COS_SCHEME = os.environ.get('COS_SCHEME', 'https')   # 访问协议，默认为https
