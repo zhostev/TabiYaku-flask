@@ -251,6 +251,11 @@ api.add_resource(TranslationRecordResource, '/api/translation/<int:record_id>')
 api.add_resource(TranslationRecordsListResource, '/api/records')
 api.add_resource(UserLogout, '/api/logout')  # 可选
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
 
 
 # 运行 Flask 应用
