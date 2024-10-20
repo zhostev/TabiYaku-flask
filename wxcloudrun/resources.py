@@ -17,6 +17,7 @@ import logging
 import sys
 import tempfile
 from datetime import datetime
+from openai import OpenAI  # 新增导入
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -55,6 +56,9 @@ register_parser.add_argument('password', type=str, required=True, help='密码�
 login_parser = reqparse.RequestParser()
 login_parser.add_argument('username', type=str, required=True, help='用户名是必需的')
 login_parser.add_argument('password', type=str, required=True, help='密码是必需的')
+
+# 初始化 OpenAI 客户端
+client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
 class UserRegister(Resource):
     def post(self):
@@ -142,23 +146,32 @@ class ImageUpload(Resource):
                 file_url = f"https://{Config.COS_BUCKET}.cos.{Config.COS_REGION}.myqcloud.com/{cos_path}"
                 logger.info(f"生成的文件 URL: {file_url}")
 
-                # 创建 OpenAI 消息负载
+                # 创建 OpenAI 消息负载，包括文本和图像 URL
                 messages = [
-                    {"role": "system", "content": "你是一个将日语菜单图片内容翻译成中文的助手。"},
-                    {"role": "user", "content": f"请将以下日语菜单图片内容翻译成中文：{file_url}"}
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "请将以下日语菜单图片内容翻译成中文："},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": file_url
+                                }
+                            }
+                        ]
+                    }
                 ]
 
-                # 配置 OpenAI API 密钥
-                openai.api_key = Config.OPENAI_API_KEY
-
-                # 使用 GPT-4 API 进行翻译
+                # 使用 GPT-4o API 进行翻译
                 try:
-                    chat_response = openai.ChatCompletion.create(
-                        model=Config.OPENAI_MODEL,
+                    response = client.chat.completions.create(
+                        model=Config.OPENAI_MODEL,  # 确保 Config.OPENAI_MODEL 设置为 "gpt-4o"
                         messages=messages,
+                        max_tokens=300,
                         temperature=0.0,
                     )
-                    chinese_translation = chat_response.choices[0].message['content'].strip()
+                    assistant_message = response.choices[0].message['content'].strip()
+                    chinese_translation = assistant_message
                     logger.info("翻译成功")
                 except Exception as e:
                     logger.error(f"翻译失败: {str(e)}")
