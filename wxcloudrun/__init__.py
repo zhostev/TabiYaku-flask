@@ -43,7 +43,16 @@ from .resources import (
     TranslationRecordsListResource,
     UserLogout
 )
-
+    
+# 异常处理，确保所有错误都返回JSON
+@app.errorhandler(400)
+@app.errorhandler(401)
+@app.errorhandler(403)
+@app.errorhandler(404)
+@app.errorhandler(500)
+def handle_error(e):
+    return jsonify(message=str(e)), e.code if hasattr(e, 'code') else 500
+    
 # 注册 API 资源，指定唯一的 endpoint 名称
 api.add_resource(UserRegister, '/api/register', endpoint="user_register")
 api.add_resource(UserLogin, '/api/login', endpoint="user_login")

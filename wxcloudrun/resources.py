@@ -148,16 +148,17 @@ class ImageUpload(Resource):
                     {"role": "user", "content": f"请将以下日语菜单图片内容翻译成中文：{file_url}"}
                 ]
 
+                # 配置 OpenAI API 密钥
+                openai.api_key = Config.OPENAI_API_KEY
+
                 # 使用 GPT-4 API 进行翻译
                 try:
-                    openai.api_key = Config.OPENAI_API_KEY
-                    openai_model = Config.OPENAI_MODEL  # 确保已设置，例如 "gpt-4"
                     chat_response = openai.ChatCompletion.create(
-                        model=openai_model,
+                        model=Config.OPENAI_MODEL,
                         messages=messages,
                         temperature=0.0,
                     )
-                    chinese_translation = chat_response.choices[0].message.content.strip()
+                    chinese_translation = chat_response.choices[0].message['content'].strip()
                     logger.info("翻译成功")
                 except Exception as e:
                     logger.error(f"翻译失败: {str(e)}")
