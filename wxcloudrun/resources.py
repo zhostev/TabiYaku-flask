@@ -18,10 +18,15 @@ import sys
 import tempfile
 from datetime import datetime
 from openai import OpenAI  # 新增导入
+import openai.error  # 新增导入以捕获 OpenAI 异常
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
+
+# 设置 OpenAI 库的日志记录级别为 DEBUG（可选）
+openai_logger = logging.getLogger("openai")
+openai_logger.setLevel(logging.DEBUG)
 
 # 初始化 COS 客户端
 def get_cos_client():
@@ -162,6 +167,10 @@ class ImageUpload(Resource):
                     }
                 ]
 
+                # 记录即将访问的 OpenAI API 端点
+                openai_api_url = "https://api.openai.com/v1/chat/completions"
+                logger.info(f"即将访问 OpenAI API 端点: {openai_api_url} with model {Config.OPENAI_MODEL}")
+
                 # 使用 GPT-4o API 进行翻译
                 try:
                     response = client.chat.completions.create(
@@ -173,7 +182,8 @@ class ImageUpload(Resource):
                     assistant_message = response.choices[0].message['content'].strip()
                     chinese_translation = assistant_message
                     logger.info("翻译成功")
-                except Exception as e:
+                except openai.error.OpenAIError as e:
+                    # 记录更详细的异常信息
                     logger.error(f"翻译失败: {str(e)}")
                     return {'message': '翻译失败', 'error': str(e)}, 500
 
