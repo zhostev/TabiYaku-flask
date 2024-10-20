@@ -202,7 +202,8 @@
 
   <!-- Include jQuery and Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-    integrity="sha256-/xUj+3OJkfNVDKPL5Ze3p1+qu+LmqEIVn7npY0E8Fjk=" crossorigin="anonymous"></script>
+    integrity="sha256-K+CTihZNmX1cbLlN1m+7oFtw1bN1CgRIjSJMvxdeEwI="
+    crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 
@@ -292,7 +293,7 @@
       const formData = new FormData();
       formData.append('image', file);
 
-      $.ajax("/api/upload_image", {
+      $.ajax("/api/upload_image", {  // 确保指向正确的 /api/upload_image
         method: "POST",
         headers: {
           'Authorization': `Bearer ${accessToken}`
