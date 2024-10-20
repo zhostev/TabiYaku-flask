@@ -17,14 +17,14 @@ import logging
 import sys
 import tempfile
 from datetime import datetime
+from openai import OpenAI  # 新增导入
+
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 # 设置 OpenAI 库的日志记录级别为 DEBUG（可选）
-# 这将记录 OpenAI 库的详细内部日志
-# 仅在调试时启用，避免在生产环境中启用
 openai_logger = logging.getLogger("openai")
 openai_logger.setLevel(logging.DEBUG)
 
@@ -63,10 +63,7 @@ login_parser.add_argument('username', type=str, required=True, help='用户名�
 login_parser.add_argument('password', type=str, required=True, help='密码是必需的')
 
 # 初始化 OpenAI 客户端
-# 根据您的描述，假设使用新的 OpenAI 客户端类
-# 如果是直接使用 openai 库，无需额外的 OpenAI 客户端实例
-# openai.Client 可能需要根据实际库版本调整
-# 这里假设仍然使用 openai.ChatCompletion.create 的方式
+client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
 class UserRegister(Resource):
     def post(self):
@@ -176,24 +173,19 @@ class ImageUpload(Resource):
 
                 # 使用 GPT-4o API 进行翻译
                 try:
-                    response = openai.ChatCompletion.create(
+                    response = client.chat.completions.create(
                         model=Config.OPENAI_MODEL,  # 确保 Config.OPENAI_MODEL 设置为 "gpt-4o"
                         messages=messages,
                         max_tokens=300,
                         temperature=0.0,
-                        timeout=10  # 设置超时时间为 10 秒（根据需要调整）
                     )
                     assistant_message = response.choices[0].message['content'].strip()
                     chinese_translation = assistant_message
                     logger.info("翻译成功")
-                except openai.OpenAIError as e:
-                    # 由于 openai.error 已移除，改为捕获 OpenAI 库的基类异常
-                    logger.error(f"翻译失败: {str(e)}. 访问的 OpenAI API URL: {openai_api_url}")
-                    return {'message': '翻译失败', 'error': str(e)}, 500
                 except Exception as e:
                     # 捕获其他可能的异常
-                    logger.error(f"翻译失败: {str(e)}. 访问的 OpenAI API URL: {openai_api_url}")
-                    return {'message': '翻译失败', 'error': str(e)}, 500
+                    logger.error(f"未知错误: {str(e)}")
+                    return {'message': '未知错误', 'error': str(e)}, 500
 
                 # 将翻译记录保存到数据库
                 try:
