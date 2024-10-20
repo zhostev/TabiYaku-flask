@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="utf-8" />
   <link rel="shortcut icon"
@@ -293,10 +292,12 @@
       const formData = new FormData();
       formData.append('image', file);
 
+      console.log('Uploading image with accessToken:', accessToken); // 调试信息
+
       $.ajax("/api/upload_image", {  // 确保指向正确的 /api/upload_image
         method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}` // 使用反引号确保模板字符串被解析
         },
         processData: false,
         contentType: false,
@@ -314,10 +315,11 @@
 
     // Fetch Translation Records
     function fetchRecords() {
+      console.log('Fetching records with accessToken:', accessToken); // 调试信息
       $.ajax("/api/records", {
         method: "GET",
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}` // 使用反引号确保模板字符串被解析
         },
       }).done(function (res) {
         $('#records-list').empty();
@@ -357,5 +359,4 @@
     });
   </script>
 </body>
-
 </html>

@@ -58,148 +58,183 @@ login_parser.add_argument('password', type=str, required=True, help='密码是�
 
 class UserRegister(Resource):
     def post(self):
-        data = register_parser.parse_args()
-        username = data['username']
-        password = data['password']
+        try:
+            data = register_parser.parse_args()
+            username = data['username']
+            password = data['password']
 
-        if User.query.filter_by(username=username).first():
-            return {'message': '用户已存在'}, 400
+            if User.query.filter_by(username=username).first():
+                logger.info(f"注册失败: 用户 '{username}' 已存在")
+                return {'message': '用户已存在'}, 400
 
-        hashed_password = generate_password_hash(password)
-        user = User(username=username, password=hashed_password)
-        db.session.add(user)
-        db.session.commit()
+            hashed_password = generate_password_hash(password)
+            user = User(username=username, password=hashed_password)
+            db.session.add(user)
+            db.session.commit()
 
-        return {'message': '用户创建成功'}, 201
+            logger.info(f"用户 '{username}' 注册成功")
+            return {'message': '用户创建成功'}, 201
+        except Exception as e:
+            logger.error(f"注册过程中出现错误: {str(e)}")
+            return {'message': '注册过程中出现错误', 'error': str(e)}, 500
 
 class UserLogin(Resource):
     def post(self):
-        data = login_parser.parse_args()
-        username = data['username']
-        password = data['password']
+        try:
+            data = login_parser.parse_args()
+            username = data['username']
+            password = data['password']
 
-        user = User.query.filter_by(username=username).first()
-        if not user or not check_password_hash(user.password, password):
-            return {'message': '无效的凭证'}, 401
+            user = User.query.filter_by(username=username).first()
+            if not user or not check_password_hash(user.password, password):
+                logger.info(f"登录失败: 无效的凭证 for user '{username}'")
+                return {'message': '无效的凭证'}, 401
 
-        access_token = create_access_token(identity=user.id)
-        return {'access_token': access_token}, 200
+            access_token = create_access_token(identity=user.id)
+            logger.info(f"用户 '{username}' 登录成功")
+            return {'access_token': access_token}, 200
+        except Exception as e:
+            logger.error(f"登录过程中出现错误: {str(e)}")
+            return {'message': '登录过程中出现错误', 'error': str(e)}, 500
 
 class ImageUpload(Resource):
     @jwt_required()
     def post(self):
-        if 'image' not in request.files:
-            return {'message': '未提供图片文件'}, 400
-        file = request.files['image']
-        if file.filename == '':
-            return {'message': '未选择文件'}, 400
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            cos_client = get_cos_client()
-            cos_path = f"uploads/{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"  # 唯一路径
+        try:
+            logger.info("开始处理图片上传请求")
+            if 'image' not in request.files:
+                logger.warning("上传失败: 未提供图片文件")
+                return {'message': '未提供图片文件'}, 400
+            file = request.files['image']
+            if file.filename == '':
+                logger.warning("上传失败: 未选择文件")
+                return {'message': '未选择文件'}, 400
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                cos_client = get_cos_client()
+                timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+                cos_path = f"uploads/{timestamp}_{filename}"  # 唯一路径
 
-            # 使用临时文件保存上传的图片
-            try:
+                # 使用临时文件保存上传的图片
                 with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                     file.save(temp_file)
                     temp_file_path = temp_file.name
 
-                # 使用推荐的 upload_file 方法上传到 COS
-                response = cos_client.upload_file(
-                    Bucket=Config.COS_BUCKET,
-                    LocalFilePath=temp_file_path,
-                    Key=cos_path,
-                    PartSize=5,           # PartSize 以 MB 为单位，根据需要调整（建议 1-5MB）
-                    MAXThread=10,         # 分段上传的线程数
-                    EnableMD5=True        # 启用 MD5 校验
-                )
-                logger.info(f"文件已上传到 COS: {cos_path}")
+                try:
+                    # 使用推荐的 upload_file 方法上传到 COS
+                    response = cos_client.upload_file(
+                        Bucket=Config.COS_BUCKET,
+                        LocalFilePath=temp_file_path,
+                        Key=cos_path,
+                        PartSize=5,           # PartSize 以 MB 为单位，根据需要调整（建议 1-5MB）
+                        MAXThread=10,         # 分段上传的线程数
+                        EnableMD5=True        # 启用 MD5 校验
+                    )
+                    logger.info(f"文件已上传到 COS: {cos_path}")
+                except Exception as e:
+                    logger.error(f"上传到 COS 失败: {str(e)}")
+                    os.remove(temp_file_path)  # 上传失败后删除临时文件
+                    return {'message': '上传到 COS 失败', 'error': str(e)}, 500
+
                 # 上传后删除临时文件
                 os.remove(temp_file_path)
 
                 file_url = f"https://{Config.COS_BUCKET}.cos.{Config.COS_REGION}.myqcloud.com/{cos_path}"
-                file_id = response.get('ETag', '')  # 如果需要，可以使用 ETag 作为文件 ID
-            except Exception as e:
-                logger.error(f"上传到 COS 失败: {str(e)}")
-                return {'message': '上传到 COS 失败', 'error': str(e)}, 500
+                logger.info(f"生成的文件 URL: {file_url}")
 
-            # 创建 OpenAI 消息负载
-            messages = [
-                {"role": "system", "content": "你是一个将日语菜单图片内容翻译成中文的助手。"},
-                {"role": "user", "content": [
-                    {"type": "text", "text": "请将以下日语菜单图片内容翻译成中文："},
-                    {"type": "image_url", "image_url": file_url}  # 使用 OpenAI 的 HTTPS URL
-                ]}
-            ]
+                # 创建 OpenAI 消息负载
+                messages = [
+                    {"role": "system", "content": "你是一个将日语菜单图片内容翻译成中文的助手。"},
+                    {"role": "user", "content": f"请将以下日语菜单图片内容翻译成中文：{file_url}"}
+                ]
 
-            # 使用 GPT-4 API 进行翻译
-            try:
-                openai.api_key = Config.OPENAI_API_KEY
-                openai_model = Config.OPENAI_MODEL  # 确保已设置，例如 "gpt-4"
-                chat_response = openai.ChatCompletion.create(
-                    model=openai_model,
-                    messages=messages,
-                    temperature=0.0,
-                )
-                chinese_translation = chat_response.choices[0].message.content.strip()
-                logger.info("翻译成功")
-            except Exception as e:
-                logger.error(f"翻译失败: {str(e)}")
-                return {'message': '翻译失败', 'error': str(e)}, 500
+                # 使用 GPT-4 API 进行翻译
+                try:
+                    openai.api_key = Config.OPENAI_API_KEY
+                    openai_model = Config.OPENAI_MODEL  # 确保已设置，例如 "gpt-4"
+                    chat_response = openai.ChatCompletion.create(
+                        model=openai_model,
+                        messages=messages,
+                        temperature=0.0,
+                    )
+                    chinese_translation = chat_response.choices[0].message.content.strip()
+                    logger.info("翻译成功")
+                except Exception as e:
+                    logger.error(f"翻译失败: {str(e)}")
+                    return {'message': '翻译失败', 'error': str(e)}, 500
 
-            # 将翻译记录保存到数据库
-            try:
-                user_id = get_jwt_identity()
-                record = TranslationRecord(
-                    cos_file_id=cos_path,
-                    chinese_translation=chinese_translation,
-                    user_id=user_id
-                )
-                db.session.add(record)
-                db.session.commit()
-                logger.info(f"翻译记录已保存: {record.id}")
-            except Exception as e:
-                logger.error(f"保存翻译记录失败: {str(e)}")
-                return {'message': '保存翻译记录失败', 'error': str(e)}, 500
+                # 将翻译记录保存到数据库
+                try:
+                    user_id = get_jwt_identity()
+                    record = TranslationRecord(
+                        cos_file_id=cos_path,
+                        chinese_translation=chinese_translation,
+                        user_id=user_id
+                    )
+                    db.session.add(record)
+                    db.session.commit()
+                    logger.info(f"翻译记录已保存: {record.id}")
+                except Exception as e:
+                    logger.error(f"保存翻译记录失败: {str(e)}")
+                    return {'message': '保存翻译记录失败', 'error': str(e)}, 500
 
-            return {
-                'record_id': record.id,
-                'chinese_translation': chinese_translation
-            }, 201
-        else:
-            return {'message': '不支持的文件类型'}, 400
+                return {
+                    'record_id': record.id,
+                    'chinese_translation': chinese_translation
+                }, 201
+            else:
+                logger.warning("上传失败: 不支持的文件类型")
+                return {'message': '不支持的文件类型'}, 400
+        except Exception as e:
+            logger.error(f"处理图片上传时出现错误: {str(e)}")
+            return {'message': '处理图片上传时出现错误', 'error': str(e)}, 500
 
 class TranslationRecordResource(Resource):
     @jwt_required()
     def get(self, record_id):
-        user_id = get_jwt_identity()
-        record = TranslationRecord.query.filter_by(id=record_id, user_id=user_id).first()
-        if not record:
-            return {'message': '记录未找到'}, 404
-        return {
-            'id': record.id,
-            'cos_file_id': record.cos_file_id,
-            'chinese_translation': record.chinese_translation,
-            'created_at': record.created_at.isoformat()
-        }, 200
+        try:
+            user_id = get_jwt_identity()
+            record = TranslationRecord.query.filter_by(id=record_id, user_id=user_id).first()
+            if not record:
+                logger.warning(f"记录未找到: ID {record_id} for user {user_id}")
+                return {'message': '记录未找到'}, 404
+            return {
+                'id': record.id,
+                'cos_file_id': record.cos_file_id,
+                'chinese_translation': record.chinese_translation,
+                'created_at': record.created_at.isoformat()
+            }, 200
+        except Exception as e:
+            logger.error(f"获取记录时出现错误: {str(e)}")
+            return {'message': '获取记录时出现错误', 'error': str(e)}, 500
 
 class TranslationRecordsListResource(Resource):
     @jwt_required()
     def get(self):
-        user_id = get_jwt_identity()
-        records = TranslationRecord.query.filter_by(user_id=user_id).order_by(TranslationRecord.created_at.desc()).all()
-        records_data = [{
-            'id': record.id,
-            'cos_file_id': record.cos_file_id,
-            'chinese_translation': record.chinese_translation,
-            'created_at': record.created_at.isoformat()
-        } for record in records]
+        try:
+            user_id = get_jwt_identity()
+            records = TranslationRecord.query.filter_by(user_id=user_id).order_by(TranslationRecord.created_at.desc()).all()
+            records_data = [{
+                'id': record.id,
+                'cos_file_id': record.cos_file_id,
+                'chinese_translation': record.chinese_translation,
+                'created_at': record.created_at.isoformat()
+            } for record in records]
 
-        return {'records': records_data}, 200
+            logger.info(f"用户 {user_id} 请求获取所有翻译记录")
+            return {'records': records_data}, 200
+        except Exception as e:
+            logger.error(f"获取所有翻译记录时出现错误: {str(e)}")
+            return {'message': '获取记录时出现错误', 'error': str(e)}, 500
 
 class UserLogout(Resource):
     @jwt_required()
     def post(self):
-        # 要实现令牌撤销，您需要设置一个令牌黑名单
-        # 这是可选的，需要额外的设置
-        return {'message': '登出成功'}, 200
+        try:
+            # 要实现令牌撤销，您需要设置一个令牌黑名单
+            # 这是可选的，需要额外的设置
+            logger.info("用户登出请求")
+            return {'message': '登出成功'}, 200
+        except Exception as e:
+            logger.error(f"登出时出现错误: {str(e)}")
+            return {'message': '登出时出现错误', 'error': str(e)}, 500
