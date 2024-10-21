@@ -64,6 +64,7 @@ login_parser.add_argument('password', type=str, required=True, help='密码是�
 
 # 初始化 OpenAI 客户端
 client = OpenAI(api_key=Config.OPENAI_API_KEY)
+client.api_base = Config.OPENAI_API_BASE
 
 class UserRegister(Resource):
     def post(self):
@@ -167,10 +168,11 @@ class ImageUpload(Resource):
                     }
                 ]
 
-                # 记录即将访问的 OpenAI API 端点
-                openai_api_url = "https://api.openai.com/v1/chat/completions"
-                logger.info(f"即将访问 OpenAI API 端点: {openai_api_url} with model {Config.OPENAI_MODEL}")
 
+                # 记录即将访问的 OpenAI API 端点
+                openai_api_url = f"{Config.OPENAI_API_BASE}/chat/completions"
+                logger.info(f"即将访问 OpenAI API 端点: {openai_api_url} with model {Config.OPENAI_MODEL}")
+                
                 # 使用 GPT-4o API 进行翻译
                 try:
                     response = client.chat.completions.create(
@@ -178,6 +180,8 @@ class ImageUpload(Resource):
                         messages=messages,
                         max_tokens=300,
                         temperature=0.0,
+                        request_timeout=10  # 设置超时时间为 10 秒
+
                     )
                     assistant_message = response.choices[0].message['content'].strip()
                     chinese_translation = assistant_message

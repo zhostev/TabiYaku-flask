@@ -1,3 +1,5 @@
+# config.py
+
 import os
 
 class Config:
@@ -18,6 +20,7 @@ class Config:
     # OpenAI 配置
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', 'your_openai_api_key')
     OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4')
+    OPENAI_API_BASE = os.environ.get('OPENAI_API_BASE', 'https://lsapi.zeabur.app/v1')  # 新增 OpenAI API 基础 URL
     
     # 上传文件夹
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/app/uploads/')
