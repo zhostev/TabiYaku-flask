@@ -1,6 +1,6 @@
 # run.py
 import sys
-from wxcloudrun import app
+from backend import app
 
 # 启动Flask Web服务
 if __name__ == '__main__':
