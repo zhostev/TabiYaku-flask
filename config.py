@@ -1,4 +1,3 @@
-# config.py
 import os
 
 DEBUG = os.environ.get('FLASK_ENV') == 'development'
@@ -22,6 +21,9 @@ OPENAI_API_BASE = os.environ.get('OPENAI_API_BASE', 'https://lsapi.zeabur.app/v1
 # Upload Folder (Updated to Relative Path)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(BASE_DIR, 'uploads'))
+
+# Flask-Login Configuration
+LOGIN_URL = '/auth/login'  # 根据你的路由调整
 
 # Swagger Configuration (if using Flask-RESTX)
 SWAGGER = {
